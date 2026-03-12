@@ -1,0 +1,12 @@
+.DS_Store
+.gradle/
+.mdk/
+build/
+
+*.jar
+!gradle/wrapper/gradle-wrapper.jar
+
+forge-*-mdk.zip
+
+run/
+mcmodsrepo/

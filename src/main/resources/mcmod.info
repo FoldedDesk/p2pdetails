@@ -1,0 +1,14 @@
+[
+  {
+    "modid": "${modid}",
+    "name": "${modname}",
+    "description": "Adds Applied Energistics 2 P2P and channel details to The One Probe.",
+    "version": "${version}",
+    "mcversion": "1.12.2",
+    "authorList": ["RayAmazing"],
+    "credits": "",
+    "logoFile": "",
+    "screenshots": [],
+    "dependencies": ["appliedenergistics2", "theoneprobe"]
+  }
+]
