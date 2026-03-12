@@ -1,8 +1,8 @@
 buildscript {
     repositories {
+        mavenCentral()
         maven { url = 'https://forge.fastmcmirror.org' }
         maven { url = 'https://maven.minecraftforge.net/' }
-        mavenCentral()
     }
     dependencies {
         classpath 'net.minecraftforge.gradle:ForgeGradle:3.+'
@@ -38,10 +38,10 @@ minecraft {
 }
 
 repositories {
+    mavenCentral()
     maven { url = 'https://forge.fastmcmirror.org' }
     maven { url = 'https://mirror.sjtu.edu.cn/bmclapi/maven' }
     maven { url = 'https://maven.minecraftforge.net' }
-    mavenCentral()
 }
 
 dependencies {
