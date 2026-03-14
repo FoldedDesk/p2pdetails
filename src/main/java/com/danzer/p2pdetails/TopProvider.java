@@ -22,10 +22,13 @@ import appeng.me.helpers.AENetworkProxy;
 import appeng.me.helpers.IGridProxyable;
 import appeng.parts.p2p.PartP2PTunnel;
 import appeng.parts.p2p.PartP2PTunnelME;
+import mcjty.theoneprobe.api.IElement;
 import mcjty.theoneprobe.api.IProbeHitData;
 import mcjty.theoneprobe.api.IProbeInfo;
 import mcjty.theoneprobe.api.IProbeInfoProvider;
 import mcjty.theoneprobe.api.ProbeMode;
+import mcjty.theoneprobe.apiimpl.ProbeInfo;
+import mcjty.theoneprobe.apiimpl.elements.ElementText;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.tileentity.TileEntity;
@@ -53,6 +56,7 @@ public class TopProvider implements IProbeInfoProvider {
         "packagedmekemicals"
     };
     private static final Field OUTER_PROXY_FIELD = findOuterProxyField();
+    private static final Field ELEMENT_TEXT_FIELD = findElementTextField();
 
     @Override
     public String getID() {
@@ -72,40 +76,47 @@ public class TopProvider implements IProbeInfoProvider {
         IPart part = resolvePart(tile, data);
 
         if (part instanceof PartP2PTunnel) {
+            sanitizeProbeInfo(probeInfo, true);
             addP2PInfo((PartP2PTunnel<?>) part, mode, probeInfo);
             return;
         }
 
         if (part instanceof IGridProxyable) {
+            sanitizeProbeInfo(probeInfo, false);
             addGenericChannelInfo(((IGridProxyable) part).getProxy(), probeInfo);
             return;
         }
 
         if (tile instanceof IGridProxyable) {
+            sanitizeProbeInfo(probeInfo, false);
             addGenericChannelInfo(((IGridProxyable) tile).getProxy(), probeInfo);
             return;
         }
 
         AENetworkProxy proxy = getOptionalProxy(part);
         if (proxy != null) {
+            sanitizeProbeInfo(probeInfo, false);
             addGenericChannelInfo(proxy, probeInfo);
             return;
         }
 
         proxy = getOptionalProxy(tile);
         if (proxy != null) {
+            sanitizeProbeInfo(probeInfo, false);
             addGenericChannelInfo(proxy, probeInfo);
             return;
         }
 
         IGridNode node = getOptionalNode(part);
         if (node != null) {
+            sanitizeProbeInfo(probeInfo, false);
             addGenericChannelInfo(node, probeInfo);
             return;
         }
 
         node = getOptionalNode(tile);
         if (node != null) {
+            sanitizeProbeInfo(probeInfo, false);
             addGenericChannelInfo(node, probeInfo);
         }
     }
@@ -465,9 +476,88 @@ public class TopProvider implements IProbeInfoProvider {
         return String.format("0x%04X", Short.toUnsignedInt(frequency));
     }
 
+    private void sanitizeProbeInfo(IProbeInfo probeInfo, boolean p2p) {
+        if (!(probeInfo instanceof ProbeInfo)) {
+            return;
+        }
+
+        List<IElement> elements = ((ProbeInfo) probeInfo).getElements();
+        for (Iterator<IElement> iterator = elements.iterator(); iterator.hasNext(); ) {
+            IElement element = iterator.next();
+            String text = getElementText(element);
+            if (text == null) {
+                continue;
+            }
+
+            if (shouldRemoveOnlineText(text) || (p2p && shouldRemoveP2PText(text))) {
+                iterator.remove();
+            }
+        }
+    }
+
+    private boolean shouldRemoveOnlineText(String text) {
+        return containsAny(text,
+            "device online",
+            "device offline",
+            "设备在线",
+            "设备离线"
+        );
+    }
+
+    private boolean shouldRemoveP2PText(String text) {
+        String normalized = text.toLowerCase();
+        if (normalized.matches(".*\\b[0-9a-f]{4}\\b.*")) {
+            return true;
+        }
+
+        return containsAny(text,
+            "unlinked",
+            "one output",
+            "many outputs",
+            "one input",
+            "many inputs",
+            "未连接",
+            "输入端",
+            "输出端"
+        );
+    }
+
+    private boolean containsAny(String text, String... needles) {
+        String normalized = text.toLowerCase();
+        for (String needle : needles) {
+            if (normalized.contains(needle.toLowerCase())) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private String getElementText(IElement element) {
+        if (!(element instanceof ElementText) || ELEMENT_TEXT_FIELD == null) {
+            return null;
+        }
+
+        try {
+            return (String) ELEMENT_TEXT_FIELD.get(element);
+        } catch (IllegalAccessException e) {
+            return null;
+        }
+    }
+
     private static Field findOuterProxyField() {
         try {
             Field field = PartP2PTunnelME.class.getDeclaredField("outerProxy");
+            field.setAccessible(true);
+            return field;
+        } catch (ReflectiveOperationException e) {
+            return null;
+        }
+    }
+
+    private static Field findElementTextField() {
+        try {
+            Field field = ElementText.class.getDeclaredField("text");
             field.setAccessible(true);
             return field;
         } catch (ReflectiveOperationException e) {
