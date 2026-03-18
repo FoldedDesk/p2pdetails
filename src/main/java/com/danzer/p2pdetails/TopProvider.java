@@ -124,24 +124,24 @@ public class TopProvider implements IProbeInfoProvider {
     private void addP2PInfo(PartP2PTunnel<?> tunnel, ProbeMode mode, IProbeInfo probeInfo) {
         short frequency = tunnel.getFrequency();
         String frequencyText = frequency == 0
-            ? TextFormatting.GRAY + "P2P 频率: 未绑定"
-            : TextFormatting.AQUA + "P2P 频率: " + formatFrequency(frequency);
+            ? TextFormatting.GRAY + tr("top.p2p_frequency") + tr("top.separator") + tr("top.unlinked")
+            : TextFormatting.AQUA + tr("top.p2p_frequency") + tr("top.separator") + formatFrequency(frequency);
         probeInfo.text(frequencyText);
 
         boolean output = tunnel.isOutput();
         ConnectionSnapshot snapshot = getConnections(tunnel);
         snapshot.extended = mode == ProbeMode.EXTENDED;
-        String modeLabel = output ? "输出" : "输入";
+        String modeLabel = output ? tr("top.mode.output") : tr("top.mode.input");
         probeInfo.text(
             statusColor(snapshot.connected, snapshot.online) +
-            "P2P 状态: " + modeLabel + " / " + snapshot.stateLabel()
+            tr("top.p2p_status") + tr("top.separator") + modeLabel + " / " + snapshot.stateLabel()
         );
 
         if (snapshot.connected) {
             if (output && !snapshot.targets.isEmpty()) {
-                probeInfo.text(TextFormatting.GREEN + "连接到: " + snapshot.targets.get(0));
+                probeInfo.text(TextFormatting.GREEN + tr("top.connected_to") + tr("top.separator") + snapshot.targets.get(0));
             } else if (!output) {
-                probeInfo.text(TextFormatting.GREEN + "已连接输出: " + snapshot.targets.size());
+                probeInfo.text(TextFormatting.GREEN + tr("top.connected_outputs") + tr("top.separator") + snapshot.targets.size());
             }
 
             if (mode == ProbeMode.EXTENDED && !output) {
@@ -162,17 +162,17 @@ public class TopProvider implements IProbeInfoProvider {
 
         if (output) {
             int used = getUsedChannels(getOuterProxy(tunnel));
-            probeInfo.text(channelColor(used, denseCapacity) + "单输出承载: " + used + "/" + denseCapacity);
-            addCapacityWarning(probeInfo, "此 P2P 输出", used, denseCapacity);
+            probeInfo.text(channelColor(used, denseCapacity) + tr("top.single_output_load") + tr("top.separator") + used + "/" + denseCapacity);
+            addCapacityWarning(probeInfo, tr("top.this_p2p_output"), used, denseCapacity);
             return;
         }
 
         int used = getUsedChannels(getOuterProxy(tunnel));
-        probeInfo.text(channelColor(used, denseCapacity) + "总传输频道: " + used + "/" + denseCapacity);
+        probeInfo.text(channelColor(used, denseCapacity) + tr("top.total_transferred_channels") + tr("top.separator") + used + "/" + denseCapacity);
         if (snapshot.connected) {
-            probeInfo.text(TextFormatting.GREEN + "输出端数量: " + snapshot.tunnels.size());
+            probeInfo.text(TextFormatting.GREEN + tr("top.output_count") + tr("top.separator") + snapshot.tunnels.size());
         }
-        addCapacityWarning(probeInfo, "此 P2P 输入", used, denseCapacity);
+        addCapacityWarning(probeInfo, tr("top.this_p2p_input"), used, denseCapacity);
 
         if (!snapshot.tunnels.isEmpty()) {
             int activeOutputs = 0;
@@ -185,7 +185,7 @@ public class TopProvider implements IProbeInfoProvider {
                 }
             }
 
-            probeInfo.text(TextFormatting.AQUA + "活跃输出端: " + activeOutputs + "/" + snapshot.tunnels.size());
+            probeInfo.text(TextFormatting.AQUA + tr("top.active_outputs") + tr("top.separator") + activeOutputs + "/" + snapshot.tunnels.size());
 
             if (snapshot.extended && activeOutputs > 0) {
                 addOutputBreakdown(probeInfo, snapshot, denseCapacity);
@@ -222,13 +222,13 @@ public class TopProvider implements IProbeInfoProvider {
 
         if (flags.contains(GridFlags.DENSE_CAPACITY)) {
             int max = AEConfig.instance().getDenseChannelCapacity();
-            probeInfo.text(channelColor(used, max) + "频道: " + used + "/" + max);
+            probeInfo.text(channelColor(used, max) + tr("top.channels") + tr("top.separator") + used + "/" + max);
             return;
         }
 
         if (flags.contains(GridFlags.COMPRESSED_CHANNEL)) {
             int max = AEConfig.instance().getNormalChannelCapacity();
-            probeInfo.text(channelColor(used, max) + "频道: " + used + "/" + max);
+            probeInfo.text(channelColor(used, max) + tr("top.channels") + tr("top.separator") + used + "/" + max);
             return;
         }
 
@@ -236,7 +236,7 @@ public class TopProvider implements IProbeInfoProvider {
             boolean hasChannel = node.meetsChannelRequirements();
             probeInfo.text(
                 (hasChannel ? TextFormatting.GREEN : TextFormatting.RED) +
-                "频道占用: " + (hasChannel ? "1/1" : "0/1")
+                tr("top.channel_usage") + tr("top.separator") + (hasChannel ? "1/1" : "0/1")
             );
         }
     }
@@ -386,7 +386,7 @@ public class TopProvider implements IProbeInfoProvider {
     private String formatTunnelTarget(PartP2PTunnel<?> tunnel) {
         TileEntity tile = tunnel.getTile();
         if (tile == null) {
-            return "未知位置";
+            return tr("top.unknown_position");
         }
 
         BlockPos pos = tile.getPos();
@@ -441,12 +441,12 @@ public class TopProvider implements IProbeInfoProvider {
         }
 
         if (used >= capacity) {
-            probeInfo.text(TextFormatting.RED + "警告: " + label + "已满载");
+            probeInfo.text(TextFormatting.RED + tr("top.warning") + tr("top.separator") + label + tr("top.is_full"));
             return;
         }
 
         if (isNearCapacity(used, capacity)) {
-            probeInfo.text(TextFormatting.YELLOW + "注意: " + label + "接近满载");
+            probeInfo.text(TextFormatting.YELLOW + tr("top.notice") + tr("top.separator") + label + tr("top.near_capacity"));
         }
     }
 
@@ -470,6 +470,10 @@ public class TopProvider implements IProbeInfoProvider {
             String target = snapshot.targets.get(i);
             probeInfo.text(channelColor(used, denseCapacity) + " - " + target + ": " + used + "/" + denseCapacity);
         }
+    }
+
+    private String tr(String key) {
+        return IProbeInfo.STARTLOC + P2PDetailsMod.MOD_ID + "." + key + IProbeInfo.ENDLOC;
     }
 
     private String formatFrequency(short frequency) {
@@ -574,9 +578,11 @@ public class TopProvider implements IProbeInfoProvider {
 
         private String stateLabel() {
             if (!online) {
-                return "离线";
+                return IProbeInfo.STARTLOC + P2PDetailsMod.MOD_ID + ".top.offline" + IProbeInfo.ENDLOC;
             }
-            return connected ? "已连接" : "未连接";
+            return connected
+                ? IProbeInfo.STARTLOC + P2PDetailsMod.MOD_ID + ".top.connected" + IProbeInfo.ENDLOC
+                : IProbeInfo.STARTLOC + P2PDetailsMod.MOD_ID + ".top.unconnected" + IProbeInfo.ENDLOC;
         }
     }
 }
