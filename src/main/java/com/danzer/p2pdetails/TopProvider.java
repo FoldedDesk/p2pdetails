@@ -145,7 +145,8 @@ public class TopProvider implements IProbeInfoProvider {
             }
 
             if (mode == ProbeMode.EXTENDED && !output) {
-                for (int i = 0; i < Math.min(snapshot.targets.size(), 4); i++) {
+                int limit = Math.max(1, Math.min(P2PDetailsConfig.extendedOutputLimit, 32));
+                for (int i = 0; i < Math.min(snapshot.targets.size(), limit); i++) {
                     probeInfo.text(TextFormatting.DARK_GREEN + " - " + snapshot.targets.get(i));
                 }
             }
@@ -194,6 +195,10 @@ public class TopProvider implements IProbeInfoProvider {
     }
 
     private void addGenericChannelInfo(AENetworkProxy proxy, IProbeInfo probeInfo) {
+        if (!P2PDetailsConfig.showGenericChannelInfo) {
+            return;
+        }
+
         if (proxy == null) {
             return;
         }
@@ -202,6 +207,10 @@ public class TopProvider implements IProbeInfoProvider {
     }
 
     private void addGenericChannelInfo(IGridNode node, IProbeInfo probeInfo) {
+        if (!P2PDetailsConfig.showGenericChannelInfo) {
+            return;
+        }
+
         if (!AEConfig.instance().isFeatureEnabled(AEFeature.CHANNELS)) {
             return;
         }
@@ -451,11 +460,16 @@ public class TopProvider implements IProbeInfoProvider {
     }
 
     private boolean isNearCapacity(int used, int capacity) {
-        return used >= Math.max(1, capacity - 4);
+        int reserve = Math.max(0, P2PDetailsConfig.nearCapacityReserve);
+        if (reserve <= 0) {
+            return false;
+        }
+        return used >= Math.max(1, capacity - reserve);
     }
 
     private void addOutputBreakdown(IProbeInfo probeInfo, ConnectionSnapshot snapshot, int denseCapacity) {
-        int limit = Math.min(snapshot.tunnels.size(), 4);
+        int configuredLimit = Math.max(1, Math.min(P2PDetailsConfig.extendedOutputLimit, 32));
+        int limit = Math.min(snapshot.tunnels.size(), configuredLimit);
         for (int i = 0; i < limit; i++) {
             PartP2PTunnel<?> tunnel = snapshot.tunnels.get(i);
             if (!(tunnel instanceof PartP2PTunnelME)) {
@@ -467,7 +481,7 @@ public class TopProvider implements IProbeInfoProvider {
                 continue;
             }
 
-            String target = snapshot.targets.get(i);
+            String target = i < snapshot.targets.size() ? snapshot.targets.get(i) : tr("top.unknown_position");
             probeInfo.text(channelColor(used, denseCapacity) + " - " + target + ": " + used + "/" + denseCapacity);
         }
     }
