@@ -18,6 +18,10 @@ import net.minecraft.command.CommandBase;
 import net.minecraft.command.CommandException;
 import net.minecraft.command.ICommandSender;
 import net.minecraft.command.WrongUsageException;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EnumFacing;
@@ -37,7 +41,7 @@ public class ScanCommand extends CommandBase {
 
     @Override
     public String getUsage(ICommandSender sender) {
-        return "/p2pdetails scan [isolated|unconnected|full|near|all|summary] [limit]";
+        return "/p2pdetails <scan|setnext|shownext|clearnext> ...";
     }
 
     @Override
@@ -53,7 +57,7 @@ public class ScanCommand extends CommandBase {
         BlockPos targetPos
     ) {
         if (args.length == 1) {
-            return getListOfStringsMatchingLastWord(args, "scan");
+            return getListOfStringsMatchingLastWord(args, "scan", "setnext", "shownext", "clearnext");
         }
         if (args.length == 2 && "scan".equalsIgnoreCase(args[0])) {
             return getListOfStringsMatchingLastWord(args, "summary", "isolated", "unconnected", "full", "near", "all");
@@ -63,7 +67,26 @@ public class ScanCommand extends CommandBase {
 
     @Override
     public void execute(MinecraftServer server, ICommandSender sender, String[] args) throws CommandException {
-        if (args.length < 1 || args.length > 3 || !"scan".equalsIgnoreCase(args[0])) {
+        if (args.length < 1) {
+            throw new WrongUsageException(getUsage(sender));
+        }
+
+        if ("setnext".equalsIgnoreCase(args[0])) {
+            handleSetNext(sender, args);
+            return;
+        }
+
+        if ("shownext".equalsIgnoreCase(args[0])) {
+            handleShowNext(sender);
+            return;
+        }
+
+        if ("clearnext".equalsIgnoreCase(args[0])) {
+            handleClearNext(sender);
+            return;
+        }
+
+        if (!"scan".equalsIgnoreCase(args[0]) || args.length > 3) {
             throw new WrongUsageException(getUsage(sender));
         }
 
@@ -92,6 +115,107 @@ public class ScanCommand extends CommandBase {
         List<TunnelRecord> records = collectTunnelRecords(world);
         ScanResult result = analyze(records);
         sendResult(sender, world, result, mode, limit);
+    }
+
+    private void handleSetNext(ICommandSender sender, String[] args) throws CommandException {
+        if (sender.getCommandSenderEntity() == null) {
+            sender.sendMessage(new TextComponentString(TextFormatting.RED + "[P2PDetails] 该命令仅玩家可用"));
+            return;
+        }
+        if (args.length != 2) {
+            throw new WrongUsageException("/p2pdetails setnext <频道号(十进制或0x十六进制)>");
+        }
+
+        int value = parseFrequencyArg(args[1]);
+        ItemStack stack = getHeldConfigTool(sender.getCommandSenderEntity());
+        if (stack == null) {
+            sender.sendMessage(new TextComponentString(TextFormatting.RED + "[P2PDetails] 请主手持有 P2P配置工具"));
+            return;
+        }
+        NBTTagCompound tag = stack.getTagCompound();
+        if (tag == null) {
+            tag = new NBTTagCompound();
+            stack.setTagCompound(tag);
+        }
+        tag.setInteger(ItemP2PConfigTool.TAG_FREQUENCY, value);
+        sender.sendMessage(new TextComponentString(
+            TextFormatting.AQUA + "[P2PDetails] " + TextFormatting.RESET
+                + "已保存配置工具频道为 "
+                + String.format(Locale.ROOT, "0x%04X", value)
+                + " (" + value + ")"
+        ));
+    }
+
+    private void handleShowNext(ICommandSender sender) {
+        if (sender.getCommandSenderEntity() == null) {
+            sender.sendMessage(new TextComponentString(TextFormatting.RED + "[P2PDetails] 该命令仅玩家可用"));
+            return;
+        }
+
+        ItemStack stack = getHeldConfigTool(sender.getCommandSenderEntity());
+        if (stack == null) {
+            sender.sendMessage(new TextComponentString(TextFormatting.RED + "[P2PDetails] 请主手持有 P2P配置工具"));
+            return;
+        }
+        Integer configured = ItemP2PConfigTool.getConfiguredFrequency(stack);
+        if (configured == null) {
+            sender.sendMessage(new TextComponentString(TextFormatting.YELLOW + "[P2PDetails] 当前工具未配置频道"));
+            return;
+        }
+        int value = configured.intValue();
+        sender.sendMessage(new TextComponentString(
+            TextFormatting.AQUA + "[P2PDetails] " + TextFormatting.RESET
+                + "当前工具频道: "
+                + String.format(Locale.ROOT, "0x%04X", value)
+                + " (" + value + ")"
+        ));
+    }
+
+    private void handleClearNext(ICommandSender sender) {
+        if (sender.getCommandSenderEntity() == null) {
+            sender.sendMessage(new TextComponentString(TextFormatting.RED + "[P2PDetails] 该命令仅玩家可用"));
+            return;
+        }
+
+        ItemStack stack = getHeldConfigTool(sender.getCommandSenderEntity());
+        if (stack == null) {
+            sender.sendMessage(new TextComponentString(TextFormatting.RED + "[P2PDetails] 请主手持有 P2P配置工具"));
+            return;
+        }
+        NBTTagCompound tag = stack.getTagCompound();
+        if (tag != null) {
+            tag.removeTag(ItemP2PConfigTool.TAG_FREQUENCY);
+        }
+        sender.sendMessage(new TextComponentString(TextFormatting.AQUA + "[P2PDetails] " + TextFormatting.RESET + "已清除配置工具频道"));
+    }
+
+    private int parseFrequencyArg(String raw) throws CommandException {
+        String text = raw.trim().toLowerCase(Locale.ROOT);
+        try {
+            int value;
+            if (text.startsWith("0x")) {
+                value = Integer.parseInt(text.substring(2), 16);
+            } else {
+                value = Integer.parseInt(text, 10);
+            }
+            if (value < 1 || value > 65535) {
+                throw new NumberFormatException("out of range");
+            }
+            return value;
+        } catch (NumberFormatException e) {
+            throw new WrongUsageException("/p2pdetails setnext <1-65535 或 0x0001-0xFFFF>");
+        }
+    }
+
+    private ItemStack getHeldConfigTool(Entity entity) {
+        if (!(entity instanceof EntityPlayer)) {
+            return null;
+        }
+        ItemStack stack = ((EntityPlayer) entity).getHeldItemMainhand();
+        if (stack == null || stack.isEmpty() || !(stack.getItem() instanceof ItemP2PConfigTool)) {
+            return null;
+        }
+        return stack;
     }
 
     private List<TunnelRecord> collectTunnelRecords(World world) {

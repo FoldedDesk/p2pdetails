@@ -22,3 +22,4 @@ p2pdetails.top.this_p2p_input=此 P2P 输入
 p2pdetails.top.offline=离线
 p2pdetails.top.connected=已连接
 p2pdetails.top.unconnected=未连接
+item.p2pdetails.p2p_config_tool.name=P2P配置工具

@@ -22,3 +22,4 @@ p2pdetails.top.this_p2p_input=this P2P input
 p2pdetails.top.offline=Offline
 p2pdetails.top.connected=Connected
 p2pdetails.top.unconnected=Unconnected
+item.p2pdetails.p2p_config_tool.name=P2P Config Tool
